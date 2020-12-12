@@ -132,9 +132,9 @@ void loop() {
 			else
 				sprintf( szDir, "/%lu_dir", ii );
 			chStep = fileCycle(szDir);
-			if ( bAutoFormat && !(lCnt%5) ) res = myfs.formatUnused( 20, res );
+			if ( bAutoFormat && !(lCnt % 5) ) res = myfs.formatUnused( 20, res );
 			while ( chStep != fileCycle(szDir) && ( loopLimit != 0 ) ) {
-				if ( bAutoFormat && !(lCnt%5) ) res = myfs.formatUnused( 20, res );
+				if ( bAutoFormat && !(lCnt % 5) ) res = myfs.formatUnused( 20, res );
 				checkInput( 0 ); // user input can 0 loopLimit
 			}
 		}
@@ -510,6 +510,7 @@ uint32_t fileCycle(const char *dir) {
 			delayMicroseconds(ADDDELAY);
 			char mm = chNow + lowOffset;
 			uint32_t jj = file3.size() + 1;
+			uint32_t timeMe = micros();
 			for ( ii = 0; ii < (nNum * SUBADD + BIGADD ) && resW > 0; ii++ ) {
 				if ( 0 == ((ii + jj) / lowShift) % 2 )
 					resW = file3.write( &mm , 1 );
@@ -519,7 +520,8 @@ uint32_t fileCycle(const char *dir) {
 				// if ( lCnt%100 == 50 ) mm='x'; // GENERATE ERROR to detect on DELETE read verify
 			}
 			file3.close();
-			Serial.printf(" %s +++ Add +++ [sz %u add %u]", szDiskMem, jj - 1, ii);
+			timeMe = micros() - timeMe;
+			Serial.printf(" %s +++ Add [sz %u add %u] @KB/sec %5.2f", szDiskMem, jj - 1, ii, ii / (timeMe / 1000.0));
 			if (resW < 0) {
 				Serial.printf( "\n\twrite fail ERR# %i 0x%X \n", resW, resW );
 				parseCmd( '0' );
