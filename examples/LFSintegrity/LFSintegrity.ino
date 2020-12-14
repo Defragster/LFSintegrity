@@ -4,19 +4,20 @@
 
 #define HALFCUT  // HALFCUT defined to fill half the disk
 #define ROOTONLY // NORMAL is NOT DEFINED!
-#define NUMDIRS 28  // When not ROOTONLY must be 1 or more
-#define MYPSRAM 8	// compile time PSRAM size
+#define NUMDIRS 10  // When not ROOTONLY must be 1 or more
+#define MYPSRAM 16	// compile time PSRAM size
 #define MYBLKSIZE 2048 // 2048
 
 //#define TEST_RAM
 //#define TEST_SPI
-#define TEST_QSPI
+//#define TEST_QSPI
 //#define TEST_PROG
+#define TEST_MRAM
 
 // Set for SPI usage
-//const int FlashChipSelect = 10; // AUDIO BOARD
+const int FlashChipSelect = 10; // AUDIO BOARD
 //const int FlashChipSelect = 5; // PJRC Mem board 64MB on #5, #6 : NAND 1Gb on #3, 2GB on #4
-const int FlashChipSelect = 6; // digital pin for flash chip CS pin
+//const int FlashChipSelect = 6; // digital pin for flash chip CS pin
 
 
 #ifdef TEST_RAM
@@ -31,6 +32,10 @@ char szDiskMem[] = "RAM_DISK";
 //#define FORMATSPI2
 LittleFS_SPIFlash myfs;
 char szDiskMem[] = "SPI_DISK";
+#elif defined(TEST_MRAM)
+//const int FlashChipSelect = 10; // Arduino 101 built-in SPI Flash
+LittleFS_SPIFram myfs;
+char szDiskMem[] = "FRAM_DISK";
 #elif defined(TEST_PROG)
 LittleFS_Program myfs;
 char szDiskMem[] = "PRO_DISK";
@@ -42,9 +47,9 @@ char szDiskMem[] = "QSPI_DISK";
 File file3;
 
 uint32_t DELSTART = 3; // originally was 3 + higher bias more to writes and larger files - lower odd
-#define SUBADD 1024	// bytes added each pass (*times file number)
-#define BIGADD 2048	// bytes added each pass - bigger will quickly consume more space
-#define MAXNUM 26	// ALPHA A-Z is 26, less for fewer files
+#define SUBADD 100	// bytes added each pass (*times file number)
+#define BIGADD 1024	// bytes added each pass - bigger will quickly consume more space
+#define MAXNUM 22	// ALPHA A-Z is 26, less for fewer files
 #define MAXFILL 66000	// ZERO to disable :: Prevent iterations from over filling - require this much free
 #define DELDELAY 0 	// delay before DEL files : delayMicroseconds
 #define ADDDELAY 0 	// delay on ADD FILE : delayMicroseconds
@@ -80,8 +85,10 @@ void setup() {
 	SPI2.begin();
 	if (!myfs.begin(51, SPI2)) {
 #endif
+#elif defined(TEST_MRAM)
+	if (!myfs.begin( FlashChipSelect )) {
 #elif defined(TEST_PROG)
-	if (!myfs.begin(1024 * 1024 * 4)) {
+	if (!myfs.begin(1024 * 1024 * 6)) {
 #else
 	if (!myfs.begin()) {
 #endif

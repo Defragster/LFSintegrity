@@ -5,3 +5,4 @@ LittleFS_QSPIFlash	KEYWORD1
 LittleFS_Program	KEYWORD1
 quickFormat	KEYWORD2
 lowLevelFormat	KEYWORD2
+formatUnused	KEYWORD2

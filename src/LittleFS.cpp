@@ -47,6 +47,12 @@ PROGMEM static const struct chipinfo {
 	{{0xEF, 0x70, 0x20}, 32, 256, 4096, 67108864, 3500, 400000}, // Winbond W25Q512JV*IM (DTR)
 	{{0x1F, 0x84, 0x01}, 24, 256, 4096, 524288, 2500, 300000}, // Adesto/Atmel AT25SF041
 	{{0x01, 0x40, 0x14}, 24, 256, 4096, 1048576, 5000, 300000}, // Spansion S25FL208K
+	//FRAM
+	{{0x03, 0x24, 0xC2}, 24, 64, 128, 1048576, 250, 1200},  //Cypress 8Mb FRAM
+	{{0xC2, 0x24, 0x00}, 24, 64, 128, 131072, 250, 1200},  //Cypress 1Mb FRAM
+	{{0xC2, 0x24, 0x01}, 24, 64, 128, 131072, 250, 1200},  //Cypress 1Mb FRAM, rev1
+	{{0xAE, 0x83, 0x09}, 24, 64, 128, 131072, 250, 1200},  //ROHM MR45V100A 1 Mbit FeRAM Memory
+	{{0xC2, 0x26, 0x08}, 24, 64, 128, 131072, 250, 1200},  //Cypress 4Mb FRAM
 
 };
 
@@ -82,7 +88,7 @@ bool LittleFS_SPIFlash::begin(uint8_t cspin, SPIClass &spiport)
 	digitalWrite(pin, HIGH);
 	port->endTransaction();
 
-	//Serial.printf("Flash ID: %02X %02X %02X\n", buf[1], buf[2], buf[3]);
+	//Serial.printf("Flash ID: %02X %02X %02X  %02X\n", buf[1], buf[2], buf[3], buf[4]);
 	const struct chipinfo *info = chip_lookup(buf + 1);
 	if (!info) return false;
 	//Serial.printf("Flash size is %.2f Mbyte\n", (float)info->chipsize / 1048576.0f);
@@ -126,6 +132,86 @@ bool LittleFS_SPIFlash::begin(uint8_t cspin, SPIClass &spiport)
 	//Serial.println("success");
 	return true;
 }
+
+FLASHMEM
+bool LittleFS_SPIFram::begin(uint8_t cspin, SPIClass &spiport)
+{
+	pin = cspin;
+	port = &spiport;
+
+	//Serial.println("flash begin");
+	configured = false;
+	digitalWrite(pin, HIGH);
+	pinMode(pin, OUTPUT);
+	port->begin();
+
+	delay(100);
+	uint8_t buf[9];
+	
+	port->beginTransaction(SPICONFIG);
+    digitalWrite(pin, LOW);
+	delayNanoseconds(50);
+    port->transfer(0x9f);  //0x9f - JEDEC register
+    for(uint8_t i = 0; i<9; i++)
+      buf[i] = port->transfer(0);
+	//delayNanoseconds(50);
+    digitalWriteFast(pin, HIGH); // Chip deselect
+    port->endTransaction();
+
+
+    if(buf[0] != 0x7F){
+      Serial.printf("JEDEC: 0x%02X, 0x%02X, 0x%02X\n", buf[0], buf[1], buf[2]);
+    } else {
+      Serial.printf("JEDEC: 0x%02X, 0x%02X, 0x%02X\n", buf[6], buf[7], buf[8]);
+	  buf[0] = buf[6];
+	  buf[1] = buf[7];
+	  buf[2] = buf[8];
+    }
+	Serial.printf("Flash ID: %02X %02X %02X\n", buf[0], buf[1], buf[2]);
+	const struct chipinfo *info = chip_lookup(buf );
+	if (!info) return false;
+	Serial.printf("Flash size is %.2f Mbyte\n", (float)info->chipsize / 1048576.0f);
+
+	memset(&lfs, 0, sizeof(lfs));
+	memset(&config, 0, sizeof(config));
+	config.context = (void *)this;
+	config.read = &static_read;
+	config.prog = &static_prog;
+	config.erase = &static_erase;
+	config.sync = &static_sync;
+	config.read_size = info->progsize;
+	config.prog_size = info->progsize;
+	config.block_size = info->erasesize;
+	config.block_count = info->chipsize / info->erasesize;
+	config.block_cycles = 400;
+	config.cache_size = info->progsize;
+	config.lookahead_size = info->progsize;
+	config.name_max = LFS_NAME_MAX;
+	addrbits = info->addrbits;
+	progtime = info->progtime;
+	erasetime = info->erasetime;
+	configured = true;
+
+	Serial.println("attempting to mount existing media");
+	if (lfs_mount(&lfs, &config) < 0) {
+		Serial.println("couldn't mount media, attemping to format");
+		if (lfs_format(&lfs, &config) < 0) {
+			Serial.println("format failed :(");
+			port = nullptr;
+			return false;
+		}
+		Serial.println("attempting to mount freshly formatted media");
+		if (lfs_mount(&lfs, &config) < 0) {
+			Serial.println("mount after format failed :(");
+			port = nullptr;
+			return false;
+		}
+	}
+	mounted = true;
+	//Serial.println("success");
+	return true;
+}
+
 
 FLASHMEM
 bool LittleFS::quickFormat()
@@ -378,6 +464,102 @@ int LittleFS_SPIFlash::wait(uint32_t microseconds)
 	return 0; // success
 }
 
+
+
+int LittleFS_SPIFram::read(lfs_block_t block, lfs_off_t offset, void *buf, lfs_size_t size)
+{
+	if (!port) return LFS_ERR_IO;
+	const uint32_t addr = block * config.block_size + offset;
+
+	
+  uint32_t i;
+
+  //FRAM READ OPERATION
+	uint8_t cmdaddr[5];
+	//Serial.printf("  addrbits=%d\n", addrbits);
+	make_command_and_address(cmdaddr, 0x03, addr, addrbits);
+	memset(buf, 0, size);
+  
+  port->beginTransaction(SPICONFIG);
+  digitalWrite(pin,LOW);                     //chip select
+  delayNanoseconds(50);
+  port->transfer(cmdaddr, 1 + (addrbits >> 3));
+  port->transfer(buf, size);
+  digitalWrite(pin,HIGH);  //release chip, signal end of transfer
+  port->endTransaction();
+	
+	//printtbuf(buf, 20);
+	return 0;
+}
+
+int LittleFS_SPIFram::prog(lfs_block_t block, lfs_off_t offset, const void *buf, lfs_size_t size)
+{
+	if (!port) return LFS_ERR_IO;
+	const uint32_t addr = block * config.block_size + offset;
+
+  // F-RAM WRITE ENABLE COMMAND
+	uint8_t cmdaddr[5];
+	//Serial.printf("  addrbits=%d\n", addrbits);
+	make_command_and_address(cmdaddr, 0x02, addr, addrbits);
+  
+  
+	port->beginTransaction(SPICONFIG);
+	digitalWrite(pin,LOW);  //chip select
+	delayNanoseconds(50);
+	SPI.transfer(0x06);    //transmit write enable opcode
+	digitalWrite(pin,HIGH); //release chip, signal end transfer
+	// F-RAM WRITE OPERATION
+	digitalWrite(pin,LOW);                  //chip select
+	port->transfer(cmdaddr, 1 + (addrbits >> 3));  
+	// Data byte transmission
+	port->transfer(buf, nullptr, size);
+	digitalWrite(pin,HIGH);                  //release chip, signal end of transfer
+	port->endTransaction();
+	
+	return 0;
+}
+
+int LittleFS_SPIFram::erase(lfs_block_t block)
+{
+	if (!port) return LFS_ERR_IO;
+	
+	uint8_t buf[256];
+	//for(uint32_t i = 0; i < config.block_size; i++) buf[i] = 0xFF;
+	memset(buf, 0xFF, config.block_size);
+	
+	uint8_t cmdaddr[5];
+	const uint32_t addr = block * config.block_size;
+	make_command_and_address(cmdaddr, 0x03, addr, addrbits);
+	
+	// F-RAM WRITE ENABLE COMMAND
+	port->beginTransaction(SPICONFIG);
+	digitalWrite(pin,LOW);  //chip select
+	delayNanoseconds(50);
+	SPI.transfer(0x06);    //transmit write enable opcode
+	digitalWrite(pin,HIGH); //release chip, signal end transfer
+
+	// F-RAM WRITE OPERATION
+	digitalWrite(pin,LOW);                   //chip select
+	port->transfer(cmdaddr, 1 + (addrbits >> 3));  
+  
+	// Data byte transmission
+	port->transfer(buf, nullptr, config.block_size);
+	digitalWrite(pin,HIGH);                  //release chip, signal end of transfer
+	port->endTransaction();
+	
+	return 0;
+}
+
+int LittleFS_SPIFram::wait(uint32_t microseconds)
+{
+	elapsedMicros usec = 0;
+	while (1) {
+		if (usec > microseconds) break; // timeout
+		yield();
+	}
+	//Serial.printf("  waited %u us\n", (unsigned int)usec);
+	return 0; // success
+}
 
 
 
