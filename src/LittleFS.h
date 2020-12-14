@@ -428,7 +428,7 @@ private:
 		return ((LittleFS_SPIFram *)(c->context))->prog(block, offset, buffer, size);
 	}
 	static int static_erase(const struct lfs_config *c, lfs_block_t block) {
-		Serial.printf("  flash er: block=%d\n", block);
+		//Serial.printf("  flash er: block=%d\n", block);
 		return ((LittleFS_SPIFram *)(c->context))->erase(block);
 	}
 	static int static_sync(const struct lfs_config *c) {

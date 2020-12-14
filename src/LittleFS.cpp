@@ -527,6 +527,7 @@ int LittleFS_SPIFram::erase(lfs_block_t block)
 		}
 		free(buffer);
 	}
+	Serial.printf("  flash er: block=%d\n", block);
 	uint8_t buf[256];
 	//for(uint32_t i = 0; i < config.block_size; i++) buf[i] = 0xFF;
 	memset(buf, 0xFF, config.block_size);
