@@ -471,9 +471,6 @@ int LittleFS_SPIFram::read(lfs_block_t block, lfs_off_t offset, void *buf, lfs_s
 	if (!port) return LFS_ERR_IO;
 	const uint32_t addr = block * config.block_size + offset;
 
-	
-  uint32_t i;
-
   //FRAM READ OPERATION
 	uint8_t cmdaddr[5];
 	//Serial.printf("  addrbits=%d\n", addrbits);
@@ -522,7 +519,14 @@ int LittleFS_SPIFram::prog(lfs_block_t block, lfs_off_t offset, const void *buf,
 int LittleFS_SPIFram::erase(lfs_block_t block)
 {
 	if (!port) return LFS_ERR_IO;
-	
+	void *buffer = malloc(config.read_size);
+	if ( buffer != nullptr) {
+		if ( blockIsBlank(&config, block, buffer)) {
+			free(buffer);
+			return 0; // Already formatted exit no wait
+		}
+		free(buffer);
+	}
 	uint8_t buf[256];
 	//for(uint32_t i = 0; i < config.block_size; i++) buf[i] = 0xFF;
 	memset(buf, 0xFF, config.block_size);

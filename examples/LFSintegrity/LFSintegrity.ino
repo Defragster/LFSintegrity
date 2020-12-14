@@ -3,8 +3,8 @@
 //#define RELEASE // Use this to exclude defragster new functions not in Beta5
 
 #define HALFCUT  // HALFCUT defined to fill half the disk
-#define ROOTONLY // NORMAL is NOT DEFINED!
-#define NUMDIRS 10  // When not ROOTONLY must be 1 or more
+//#define ROOTONLY // NORMAL is NOT DEFINED!
+#define NUMDIRS 8  // When not ROOTONLY must be 1 or more
 #define MYPSRAM 16	// compile time PSRAM size
 #define MYBLKSIZE 2048 // 2048
 
@@ -47,10 +47,10 @@ char szDiskMem[] = "QSPI_DISK";
 File file3;
 
 uint32_t DELSTART = 3; // originally was 3 + higher bias more to writes and larger files - lower odd
-#define SUBADD 100	// bytes added each pass (*times file number)
-#define BIGADD 1024	// bytes added each pass - bigger will quickly consume more space
-#define MAXNUM 22	// ALPHA A-Z is 26, less for fewer files
-#define MAXFILL 66000	// ZERO to disable :: Prevent iterations from over filling - require this much free
+#define SUBADD 10	// bytes added each pass (*times file number)
+#define BIGADD 100	// bytes added each pass - bigger will quickly consume more space
+#define MAXNUM 8	// ALPHA A-Z is 26, less for fewer files
+#define MAXFILL 2048 // 66000	// ZERO to disable :: Prevent iterations from over filling - require this much free
 #define DELDELAY 0 	// delay before DEL files : delayMicroseconds
 #define ADDDELAY 0 	// delay on ADD FILE : delayMicroseconds
 
