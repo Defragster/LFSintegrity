@@ -527,14 +527,14 @@ int LittleFS_SPIFram::erase(lfs_block_t block)
 		}
 		free(buffer);
 	}
-	Serial.printf("  flash er: block=%d\n", block);
+	//Serial.printf("  flash er: block=%d\n", block);
 	uint8_t buf[256];
 	//for(uint32_t i = 0; i < config.block_size; i++) buf[i] = 0xFF;
 	memset(buf, 0xFF, config.block_size);
 	
 	uint8_t cmdaddr[5];
 	const uint32_t addr = block * config.block_size;
-	make_command_and_address(cmdaddr, 0x03, addr, addrbits);
+	make_command_and_address(cmdaddr, 0x02, addr, addrbits);
 	
 	// F-RAM WRITE ENABLE COMMAND
 	port->beginTransaction(SPICONFIG);
