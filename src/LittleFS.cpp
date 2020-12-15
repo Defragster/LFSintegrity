@@ -48,7 +48,7 @@ PROGMEM static const struct chipinfo {
 	{{0x1F, 0x84, 0x01}, 24, 256, 4096, 524288, 2500, 300000}, // Adesto/Atmel AT25SF041
 	{{0x01, 0x40, 0x14}, 24, 256, 4096, 1048576, 5000, 300000}, // Spansion S25FL208K
 	//FRAM
-	{{0x03, 0x24, 0xC2}, 24, 64, 128, 1048576, 250, 1200},  //Cypress 8Mb FRAM
+	{{0x03, 0x2E, 0xC2}, 24, 64, 128, 1048576, 250, 1200},  //Cypress 8Mb FRAM
 	{{0xC2, 0x24, 0x00}, 24, 64, 128, 131072, 250, 1200},  //Cypress 1Mb FRAM
 	{{0xC2, 0x24, 0x01}, 24, 64, 128, 131072, 250, 1200},  //Cypress 1Mb FRAM, rev1
 	{{0xAE, 0x83, 0x09}, 24, 64, 128, 131072, 250, 1200},  //ROHM MR45V100A 1 Mbit FeRAM Memory
@@ -159,18 +159,15 @@ bool LittleFS_SPIFram::begin(uint8_t cspin, SPIClass &spiport)
     port->endTransaction();
 
 
-    if(buf[0] != 0x7F){
-      Serial.printf("JEDEC: 0x%02X, 0x%02X, 0x%02X\n", buf[0], buf[1], buf[2]);
-    } else {
-      Serial.printf("JEDEC: 0x%02X, 0x%02X, 0x%02X\n", buf[6], buf[7], buf[8]);
-	  buf[0] = buf[6];
-	  buf[1] = buf[7];
-	  buf[2] = buf[8];
+    if(buf[0] == 0x7F){
+		buf[0] = buf[6];
+		buf[1] = buf[7];
+		buf[2] = buf[8];
     }
-	Serial.printf("Flash ID: %02X %02X %02X\n", buf[0], buf[1], buf[2]);
+	//Serial.printf("Flash ID: %02X %02X %02X\n", buf[0], buf[1], buf[2]);
 	const struct chipinfo *info = chip_lookup(buf );
 	if (!info) return false;
-	Serial.printf("Flash size is %.2f Mbyte\n", (float)info->chipsize / 1048576.0f);
+	//Serial.printf("Flash size is %.2f Mbyte\n", (float)info->chipsize / 1048576.0f);
 
 	memset(&lfs, 0, sizeof(lfs));
 	memset(&config, 0, sizeof(config));
@@ -476,14 +473,12 @@ int LittleFS_SPIFram::read(lfs_block_t block, lfs_off_t offset, void *buf, lfs_s
 	//Serial.printf("  addrbits=%d\n", addrbits);
 	make_command_and_address(cmdaddr, 0x03, addr, addrbits);
 	memset(buf, 0, size);
-  
-  port->beginTransaction(SPICONFIG);
-  digitalWrite(pin,LOW);                     //chip select
-  delayNanoseconds(50);
-  port->transfer(cmdaddr, 1 + (addrbits >> 3));
-  port->transfer(buf, size);
-  digitalWrite(pin,HIGH);  //release chip, signal end of transfer
-  port->endTransaction();
+	port->beginTransaction(SPICONFIG);
+	digitalWrite(pin,LOW);                     //chip select
+	port->transfer(cmdaddr, 1 + (addrbits >> 3));
+	port->transfer(buf, size);
+	digitalWrite(pin,HIGH);  //release chip, signal end of transfer
+	port->endTransaction();
 	
 	//printtbuf(buf, 20);
 	return 0;
@@ -499,12 +494,12 @@ int LittleFS_SPIFram::prog(lfs_block_t block, lfs_off_t offset, const void *buf,
 	//Serial.printf("  addrbits=%d\n", addrbits);
 	make_command_and_address(cmdaddr, 0x02, addr, addrbits);
   
-  
 	port->beginTransaction(SPICONFIG);
 	digitalWrite(pin,LOW);  //chip select
 	delayNanoseconds(50);
 	SPI.transfer(0x06);    //transmit write enable opcode
 	digitalWrite(pin,HIGH); //release chip, signal end transfer
+	delayNanoseconds(50);
 	// F-RAM WRITE OPERATION
 	digitalWrite(pin,LOW);                  //chip select
 	port->transfer(cmdaddr, 1 + (addrbits >> 3));  
@@ -531,7 +526,6 @@ int LittleFS_SPIFram::erase(lfs_block_t block)
 	uint8_t buf[256];
 	//for(uint32_t i = 0; i < config.block_size; i++) buf[i] = 0xFF;
 	memset(buf, 0xFF, config.block_size);
-	
 	uint8_t cmdaddr[5];
 	const uint32_t addr = block * config.block_size;
 	make_command_and_address(cmdaddr, 0x02, addr, addrbits);
@@ -539,10 +533,9 @@ int LittleFS_SPIFram::erase(lfs_block_t block)
 	// F-RAM WRITE ENABLE COMMAND
 	port->beginTransaction(SPICONFIG);
 	digitalWrite(pin,LOW);  //chip select
-	delayNanoseconds(50);
 	SPI.transfer(0x06);    //transmit write enable opcode
 	digitalWrite(pin,HIGH); //release chip, signal end transfer
-
+	delayNanoseconds(50);
 	// F-RAM WRITE OPERATION
 	digitalWrite(pin,LOW);                   //chip select
 	port->transfer(cmdaddr, 1 + (addrbits >> 3));  
