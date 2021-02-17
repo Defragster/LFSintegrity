@@ -26,7 +26,6 @@
 #include <SPI.h>
 #include "littlefs/lfs.h"
 
-
 class LittleFSFile : public File
 {
 private:
