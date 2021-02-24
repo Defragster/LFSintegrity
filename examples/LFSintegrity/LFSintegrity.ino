@@ -10,8 +10,8 @@
 
 //#define TEST_RAM
 //#define TEST_SPI
-//#define TEST_QSPI
-#define TEST_SPI_NAND
+#define TEST_QSPI
+//#define TEST_SPI_NAND
 //#define TEST_QSPI_NAND
 //#define TEST_PROG
 //#define TEST_MRAM

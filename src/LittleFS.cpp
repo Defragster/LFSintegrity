@@ -106,8 +106,8 @@ bool LittleFS_SPIFlash::begin(uint8_t cspin, SPIClass &spiport)
 	config.block_count = info->chipsize / info->erasesize;
 	config.block_cycles = 400;
 	config.cache_size = info->progsize;
-	//config.lookahead_size = info->progsize;
-	config.lookahead_size = config.block_count/8;
+	config.lookahead_size = info->progsize;
+	// config.lookahead_size = config.block_count/8;
 	config.name_max = LFS_NAME_MAX;
 	addrbits = info->addrbits;
 	progtime = info->progtime;
@@ -714,8 +714,8 @@ bool LittleFS_QSPIFlash::begin()
 	config.block_count = info->chipsize / info->erasesize;
 	config.block_cycles = 400;
 	config.cache_size = info->progsize;
-	//config.lookahead_size = info->progsize;
-	config.lookahead_size = config.block_count/8;
+	config.lookahead_size = info->progsize;
+	//config.lookahead_size = config.block_count/8;
 	config.name_max = LFS_NAME_MAX;
 	addrbits = info->addrbits;
 	progtime = info->progtime;
